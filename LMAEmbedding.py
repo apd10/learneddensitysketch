@@ -41,7 +41,7 @@ class LMAEmbeddingFunction(torch.autograd.Function):
         
         ctx.save_for_backward(hashed_idx)
         ctx.hashed_weights_size = hashed_weights.shape[0]
-        return hashed_idx, output
+        return output
 
     '''
     @staticmethod

@@ -51,7 +51,7 @@ __global__ void lma_embedding_bag_update_output_kernel(
     int y_idx = threadIdx.y; // for chunk id - need looping
     int z_idx = threadIdx.z; // repetition number - no looping
     
-    //printf("x_idx: %d, y_idx: %d, z_idx:%d  blockdimensions:(%d,%d,%d) griddim:(%d,%d,%d)\n", 
+    ////printf("x_idx: %d, y_idx: %d, z_idx:%d  blockdimensions:(%d,%d,%d) griddim:(%d,%d,%d)\n", 
     //        x_idx, y_idx, z_idx, blockDim.x, blockDim.y, blockDim.z, gridDim.x, gridDim.y, gridDim.z);
     if ( x_idx < batch_size and y_idx < num_chunks and z_idx < num_rep) {
       int64_t location = 0;
@@ -69,7 +69,7 @@ __global__ void lma_embedding_bag_update_output_kernel(
       bool even;
       for(int i=x_idx; i < batch_size; i+= gridDim.x) {
         for(int j = y_idx; j < num_chunks; j+= blockDim.y) {
-          printf("example: %d(+%d) chunk_id:%d(+%d) repetition:%d\n", i, gridDim.x, j, blockDim.y, z_idx);
+          //printf("example: %d(+%d) chunk_id:%d(+%d) repetition:%d\n", i, gridDim.x, j, blockDim.y, z_idx);
 
           // i is the example id
           // j is the chunk id
@@ -80,23 +80,23 @@ __global__ void lma_embedding_bag_update_output_kernel(
             //location += ((random_projections[i][z_idx][bit_offset + k] > 0) ? power2 : 0);
             if (random_projections[i][z_idx][bit_offset + k] > 0) {
               location = location + power2;
-              printf("[%d,%d,%d] power:%ld location:%ld\n", i,j,z_idx, power2,location);
+              //printf("[%d,%d,%d] power:%ld location:%ld\n", i,j,z_idx, power2,location);
             }
-            printf("[%d,%d,%d] loop : using projection: (%d,%d,%d) value: %f bit:%d inchunk:%d power2:%ld location:%ld\n", i,j,z_idx, i, z_idx, bit_offset + k, random_projections[i][z_idx][bit_offset + k], (random_projections[i][z_idx][bit_offset + k] > 0), k, power2, location);
+            //printf("[%d,%d,%d] loop : using projection: (%d,%d,%d) value: %f bit:%d inchunk:%d power2:%ld location:%ld\n", i,j,z_idx, i, z_idx, bit_offset + k, random_projections[i][z_idx][bit_offset + k], (random_projections[i][z_idx][bit_offset + k] > 0), k, power2, location);
 
             power2 = power2<<1L;
           }
           idx = hash_func(location, j, random_numbers) % array_size;
-          printf("[%d,%d,%d] location: %ld idx: %ld\n", i,j,z_idx, location, idx);
+          //printf("[%d,%d,%d] location: %ld idx: %ld\n", i,j,z_idx, location, idx);
           chunk_offset = chunk_size * j;
           local_chunk_offset = chunk_size * (j % blockDim.y); // only need to look at the block
 
-          //printf("x_idx:%d z_idx:%d i:%d j:%d loc:%ld idx:%ld \n", x_idx,z_idx,i,j, location, idx);
+          ////printf("x_idx:%d z_idx:%d i:%d j:%d loc:%ld idx:%ld \n", x_idx,z_idx,i,j, location, idx);
           for(int k=0; k < chunk_size ; k++) {
             final_idx = z_idx * array_size + (idx + k) % array_size;
             hashed_index[i][z_idx][chunk_offset + k] = final_idx;
             local_output[location2d(z_idx,local_chunk_offset+ k,num_rep, local_max_total_chunk)] = hashed_weights[final_idx];
-            printf("[%d,%d,%d] idx: %ld final_idx: %ld hashed_weight: %f \n", i,j,z_idx, idx, final_idx, hashed_weights[final_idx]);
+            //printf("[%d,%d,%d] idx: %ld final_idx: %ld hashed_weight: %f \n", i,j,z_idx, idx, final_idx, hashed_weights[final_idx]);
           }
           // need to reduce local_output into output 
           num = num_rep;
@@ -110,14 +110,14 @@ __global__ void lma_embedding_bag_update_output_kernel(
             }
             num = stride + (even ? 0 : 1);
             if(i == 0 and j==0 and z_idx == 0) {
-              printf("i,j:(%d,%d) : num: %d stride:%d even:%d\n", i, j, num, stride, even);
+              //printf("i,j:(%d,%d) : num: %d stride:%d even:%d\n", i, j, num, stride, even);
             }
             __syncthreads(); // sync block
           }
           if(z_idx == 0) {
             for(int k=0; k < chunk_size ; k++) {
               output[i][chunk_offset + k] = local_output[location2d(z_idx, local_chunk_offset + k, num_rep, local_max_total_chunk)] / num_rep;
-              printf("[%d,%d,%d] ouput: %f\n",  i,j,z_idx, output[i][chunk_offset + k]);
+              //printf("[%d,%d,%d] ouput: %f\n",  i,j,z_idx, output[i][chunk_offset + k]);
             }
           }
         }
@@ -158,7 +158,7 @@ std::tuple<torch::Tensor, torch::Tensor> lma_embedding_bag_cuda_forward(
 #endif
     int grid = 1024;
     if( num_rep > 64) {
-      printf("Too many repetitions not supported, max: %d\n", MAX_BLOCK_SIZE);
+      //printf("Too many repetitions not supported, max: %d\n", MAX_BLOCK_SIZE);
       assert(false);
     }
     int max_chunks = (int)((MAX_BLOCK_SIZE + num_rep - 1) /num_rep);
@@ -174,7 +174,7 @@ std::tuple<torch::Tensor, torch::Tensor> lma_embedding_bag_cuda_forward(
         grid = MAX_GRID_SIZE;
     }
 
-    printf("Calling the kernel grid:%d block:(1,%d,%d) \n", grid, num_chunks, num_rep); fflush(stdout);
+    //printf("Calling the kernel grid:%d block:(1,%d,%d) \n", grid, num_chunks, num_rep); fflush(stdout);
     AT_DISPATCH_FLOATING_TYPES(hashed_weights.type(), "lma_embedding_bag_cuda", ([&] {
         lma_embedding_bag_update_output_kernel<scalar_t><<<grid, block, (num_rep * block.y * chunk_size * sizeof(float)), stream>>>(
             random_projections.packed_accessor32<scalar_t, 3, torch::RestrictPtrTraits>(),
