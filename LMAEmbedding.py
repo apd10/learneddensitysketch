@@ -57,7 +57,7 @@ class LMAEmbeddingFunction(torch.autograd.Function):
         hashed_idx, = ctx.saved_variables
         hashed_weights_size = ctx.hashed_weights_size
 
-        weight_grad = torch.zeros(hashed_weights_size).to(grad.device)
+        weight_grad = torch.zeros(hashed_weights_size, device=grad.device)
 
         if grad.is_contiguous():
             grad1 = grad.view(-1)
